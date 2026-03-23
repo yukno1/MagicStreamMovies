@@ -14,7 +14,7 @@ func AuthMiddleWare() gin.HandlerFunc {
 
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			c.Abort() // no continue
+			c.Abort() // no continue, abort further execution
 			return
 		}
 		if token == "" {
