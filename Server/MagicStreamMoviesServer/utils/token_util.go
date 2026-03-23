@@ -2,9 +2,11 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yukno1/MagicStreamMovies/Server/MagicStreamMoviesServer/database"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -83,4 +85,47 @@ func UpdateAllTokens(userId, token, refreshToken string) (err error) {
 		return err
 	}
 	return nil
+}
+
+func GetAccessToken(c *gin.Context) (string, error) {
+	authHeader := c.Request.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("authorization header is required")
+	}
+
+	tokenString := authHeader[len("Bearer "):]
+
+	if tokenString == "" {
+		return "", errors.New("bearer token is required")
+	}
+
+	return tokenString, nil
+}
+
+func ValidateToken(tokenString string) (*SignedDetails, error) {
+	claims := &SignedDetails{} // struct extend jwt.RegisteredClaims
+
+	// parse token string into token object
+	// decode claims into claims var
+	// use a callback func to provide secret key used to verify the signature
+	// return as a byte slice
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(SECRET_KEY), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// check the signed algo used is HMAC
+	// attacker can try to spoof tokens using a different algo
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		return nil, err
+	}
+
+	// check expiry date
+	if claims.ExpiresAt.Before(time.Now()) {
+		return nil, errors.New("token has expired")
+	}
+
+	return claims, err
 }
